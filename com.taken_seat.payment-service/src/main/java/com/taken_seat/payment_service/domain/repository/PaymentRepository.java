@@ -16,6 +16,4 @@ public interface PaymentRepository {
 
 	Optional<Payment> findByBookingIdAndDeletedAtIsNull(UUID bookingId);
 
-	Optional<Payment> findByOrderIdAndDeletedAtIsNull(String orderId);
-
 }
