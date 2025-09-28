@@ -30,4 +30,10 @@ public class PaymentRepositoryImpl implements PaymentRepository {
 	public Optional<Payment> findByBookingIdAndDeletedAtIsNull(UUID bookingId) {
 		return paymentRepository.findByBookingIdAndDeletedAtIsNull(bookingId);
 	}
+
+	@Override
+	public Optional<Payment> findByOrderIdAndDeletedAtIsNull(String orderId) {
+		return paymentRepository.findByOrderIdAndDeletedAtIsNull(orderId);
+	}
+
 }
