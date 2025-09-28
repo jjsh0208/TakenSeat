@@ -9,6 +9,7 @@ import com.taken_seat.common_service.exception.enums.ResponseCode;
 import com.taken_seat.common_service.message.PaymentMessage;
 import com.taken_seat.common_service.message.PaymentRefundMessage;
 import com.taken_seat.payment_service.application.dto.service.PaymentDto;
+import com.taken_seat.payment_service.application.tossclient.dto.TossConfirmResponse;
 import com.taken_seat.payment_service.domain.enums.PaymentStatus;
 
 import jakarta.persistence.Column;
@@ -54,6 +55,9 @@ public class Payment extends BaseTimeEntity {
 
 	@Column(unique = true)
 	private String idempotencyKey;
+
+	@Column(unique = true)
+	private String orderId;
 
 	@Column(nullable = false)
 	@Enumerated(EnumType.STRING)
@@ -116,12 +120,13 @@ public class Payment extends BaseTimeEntity {
 		this.preUpdate(message.getUserId());
 	}
 
-	public void updateSuccessInfo(String paymentKey, int totalAmount) {
+	public void updateSuccessInfo(TossConfirmResponse response) {
 
 		this.paymentStatus = PaymentStatus.COMPLETED;
-		this.paymentKey = paymentKey;
-		this.amount = totalAmount;
+		this.paymentKey = response.paymentKey();
+		this.amount = response.totalAmount();
 		this.approvedAt = LocalDateTime.now();
 		this.updatedAt = LocalDateTime.now();
+		this.idempotencyKey = response.idempotencyKey();
 	}
 }
