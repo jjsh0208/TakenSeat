@@ -52,6 +52,9 @@ public class Payment extends BaseTimeEntity {
 	@Column(unique = true)
 	private String paymentKey;
 
+	@Column(unique = true)
+	private String idempotencyKey;
+
 	@Column(nullable = false)
 	@Enumerated(EnumType.STRING)
 	private PaymentStatus paymentStatus;
