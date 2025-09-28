@@ -10,9 +10,5 @@ public record TossConfirmResponse(
 	CardInfo card,
 	String idempotencyKey // 멱등키 필드 추가
 ) {
-	public record CardInfo(
-		String number,
-		String company
-	) {
-	}
+
 }
