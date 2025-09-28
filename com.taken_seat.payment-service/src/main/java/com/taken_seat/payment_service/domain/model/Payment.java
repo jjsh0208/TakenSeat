@@ -56,9 +56,6 @@ public class Payment extends BaseTimeEntity {
 	@Column(unique = true)
 	private String idempotencyKey;
 
-	@Column(unique = true)
-	private String orderId;
-
 	@Column(nullable = false)
 	@Enumerated(EnumType.STRING)
 	private PaymentStatus paymentStatus;
@@ -128,5 +125,6 @@ public class Payment extends BaseTimeEntity {
 		this.approvedAt = LocalDateTime.now();
 		this.updatedAt = LocalDateTime.now();
 		this.idempotencyKey = response.idempotencyKey();
+		this.orderId = response.orderId();
 	}
 }
