@@ -125,6 +125,5 @@ public class Payment extends BaseTimeEntity {
 		this.approvedAt = LocalDateTime.now();
 		this.updatedAt = LocalDateTime.now();
 		this.idempotencyKey = response.idempotencyKey();
-		this.orderId = response.orderId();
 	}
 }
