@@ -237,7 +237,7 @@ public class PaymentServiceImpl implements PaymentService {
 			.orElseThrow(() ->
 				new PaymentHistoryException(ResponseCode.PAYMENT_HISTORY_NOT_FOUND_EXCEPTION));
 
-		payment.updateSuccessInfo(response.paymentKey(), response.totalAmount());
+		payment.updateSuccessInfo(response);
 
 		paymentHistory.updateSuccessInfo(payment);
 
