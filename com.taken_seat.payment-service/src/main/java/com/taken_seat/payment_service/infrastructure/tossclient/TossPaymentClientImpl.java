@@ -2,7 +2,6 @@ package com.taken_seat.payment_service.infrastructure.tossclient;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -21,6 +20,7 @@ import com.taken_seat.payment_service.application.tossclient.dto.TossApiResponse
 import com.taken_seat.payment_service.application.tossclient.dto.TossCancelRequest;
 import com.taken_seat.payment_service.application.tossclient.dto.TossConfirmResponse;
 import com.taken_seat.payment_service.application.tossclient.dto.TossPaymentRequest;
+import com.taken_seat.payment_service.domain.enums.PaymentStatus;
 import com.taken_seat.payment_service.domain.model.Payment;
 import com.taken_seat.payment_service.domain.repository.PaymentRepository;
 
@@ -49,32 +49,12 @@ public class TossPaymentClientImpl implements TossPaymentClient {
 	}
 
 	@Override
-	public TossConfirmResponse confirmPayment(TossPaymentRequest request) {
-
-		// 여기서 사용하는 orderId는 내 Payment에서 사용되는 bookingId이다.
-		Optional<Payment> paymentOpt = paymentRepository.findByBookingIdAndDeletedAtIsNull(
-			UUID.fromString(request.orderId()));
-
-		// 1. filter와 map을 이용해 "이미 처리된 결제 응답" Optional을 생성
-		Optional<TossConfirmResponse> existingResponseOpt = paymentOpt
-			.filter(payment -> payment.getIdempotencyKey() != null) // idempotencyKey가 null이 아닌 경우만 통과
-			.map(TossConfirmResponse::from); // 통과한 Payment를 TossConfirmResponse로 변환
-
-		// 2. "이미 처리된 결제 응답"이 존재하면 바로 반환합니다.
-		if (existingResponseOpt.isPresent()) {
-			log.info("이미 처리된 결제입니다. orderId={}", request.orderId());
-			return existingResponseOpt.get();
-		}
-
-		// 3. 존재하지 않으면, 새로운 결제 로직을 진행
-		// orderId 와 랜덤 UUID를 생성해 멱등성키를 만들어준다.
-		String idempotencyKey = request.orderId() + "_" + UUID.randomUUID();
-
+	public TossConfirmResponse confirmPayment(TossPaymentRequest request, String idempotencyKey) {
 		try {
 			ResponseEntity<TossApiResponse> responseEntity = restClient.post()
 				.uri("/payments/confirm")
-				.body(request)
 				.header("Idempotency-Key", idempotencyKey)
+				.body(request)
 				.retrieve()
 				.toEntity(TossApiResponse.class);
 
@@ -100,13 +80,23 @@ public class TossPaymentClientImpl implements TossPaymentClient {
 	}
 
 	@Override
-	public void refund(String paymentKey, Integer cancelAmount, String cancelReason) {
+	public void refund(Payment payment, String cancelReason) {
+
+		if (payment.getPaymentStatus() == PaymentStatus.COMPLETED) {
+			throw new PaymentException(ResponseCode.ILLEGAL_ARGUMENT, "잘못된 환불 요청입니다,");
+		}
+
+		int cancelAmount = payment.getAmount();
+		String paymentKey = payment.getPaymentKey();
 
 		TossCancelRequest request = new TossCancelRequest(cancelAmount, cancelReason);
+
+		String idempotencyKey = payment.getBookingId() + "_" + UUID.randomUUID();
 
 		try {
 			restClient.post()
 				.uri("/payments/{paymentKey}/cancel", paymentKey)
+				.header("Idempotency-Key", idempotencyKey)
 				.body(request)
 				.retrieve()
 				.toBodilessEntity();

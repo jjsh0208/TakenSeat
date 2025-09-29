@@ -2,9 +2,10 @@ package com.taken_seat.payment_service.application.tossclient;
 
 import com.taken_seat.payment_service.application.tossclient.dto.TossConfirmResponse;
 import com.taken_seat.payment_service.application.tossclient.dto.TossPaymentRequest;
+import com.taken_seat.payment_service.domain.model.Payment;
 
 public interface TossPaymentClient {
-	TossConfirmResponse confirmPayment(TossPaymentRequest request);
+	TossConfirmResponse confirmPayment(TossPaymentRequest request, String idempotencyKey);
 
-	void refund(String paymentKey, Integer cancelAmount, String cancelReason);
+	void refund(Payment payment, String cancelReason);
 }
