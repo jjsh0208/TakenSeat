@@ -23,6 +23,7 @@ import com.taken_seat.payment_service.application.dto.service.PaymentSearchDto;
 import com.taken_seat.payment_service.application.tossclient.TossPaymentClient;
 import com.taken_seat.payment_service.application.tossclient.dto.TossConfirmResponse;
 import com.taken_seat.payment_service.application.tossclient.dto.TossPaymentRequest;
+import com.taken_seat.payment_service.domain.enums.PaymentStatus;
 import com.taken_seat.payment_service.domain.model.Payment;
 import com.taken_seat.payment_service.domain.model.PaymentHistory;
 import com.taken_seat.payment_service.domain.repository.CustomPaymentQuerydslRepository;
@@ -222,24 +223,28 @@ public class PaymentServiceImpl implements PaymentService {
 	@Override
 	public TossConfirmResponse confirmPayment(TossPaymentRequest request) {
 
-		TossConfirmResponse response = tossPaymentClient.confirmPayment(request);
-
-		saveOrUpdatePayment(response, request.orderId());
-
-		return response;
-	}
-
-	private void saveOrUpdatePayment(TossConfirmResponse response, String orderId) {
-		Payment payment = paymentRepository.findByBookingIdAndDeletedAtIsNull(UUID.fromString(orderId))
+		// 1. DB에서 반드시 존재해야 하는 Payment 엔티티를 조회
+		Payment payment = paymentRepository.findByBookingIdAndDeletedAtIsNull(
+				UUID.fromString(request.orderId()))
 			.orElseThrow(() -> new PaymentException(ResponseCode.PAYMENT_NOT_FOUND_EXCEPTION));
 
+		// 2. 이미 완료된 결제인지 상태를 직접 확인합니다.
+		if (payment.getPaymentStatus() == PaymentStatus.COMPLETED) {
+			log.info("이미 처리된 결제입니다. orderId={}", request.orderId());
+			return TossConfirmResponse.from(payment);
+		}
+
+		// 3. 외부 API 호출을 위한 멱등키 생성 및 API 호출
+		String idempotencyKey = request.orderId() + "_" + UUID.randomUUID();
+		TossConfirmResponse response = tossPaymentClient.confirmPayment(request, idempotencyKey);
+
+		// 4. 조회한 Payment 엔티티의 상태를 업데이트합니다.
 		PaymentHistory paymentHistory = paymentHistoryRepository.findByPayment(payment)
-			.orElseThrow(() ->
-				new PaymentHistoryException(ResponseCode.PAYMENT_HISTORY_NOT_FOUND_EXCEPTION));
+			.orElseThrow(() -> new PaymentHistoryException(ResponseCode.PAYMENT_HISTORY_NOT_FOUND_EXCEPTION));
 
 		payment.updateSuccessInfo(response);
-
 		paymentHistory.updateSuccessInfo(payment);
 
+		return response;
 	}
 }
