@@ -2,7 +2,6 @@ package com.taken_seat.payment_service.infrastructure.tossclient;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -20,8 +19,6 @@ import com.taken_seat.payment_service.application.tossclient.dto.TossApiResponse
 import com.taken_seat.payment_service.application.tossclient.dto.TossCancelRequest;
 import com.taken_seat.payment_service.application.tossclient.dto.TossConfirmResponse;
 import com.taken_seat.payment_service.application.tossclient.dto.TossPaymentRequest;
-import com.taken_seat.payment_service.domain.enums.PaymentStatus;
-import com.taken_seat.payment_service.domain.model.Payment;
 import com.taken_seat.payment_service.domain.repository.PaymentRepository;
 
 import lombok.extern.slf4j.Slf4j;
@@ -80,18 +77,9 @@ public class TossPaymentClientImpl implements TossPaymentClient {
 	}
 
 	@Override
-	public void refund(Payment payment, String cancelReason) {
-
-		if (payment.getPaymentStatus() == PaymentStatus.COMPLETED) {
-			throw new PaymentException(ResponseCode.ILLEGAL_ARGUMENT, "잘못된 환불 요청입니다,");
-		}
-
-		int cancelAmount = payment.getAmount();
-		String paymentKey = payment.getPaymentKey();
+	public void cancelPayment(String paymentKey, String cancelReason, int cancelAmount, String idempotencyKey) {
 
 		TossCancelRequest request = new TossCancelRequest(cancelAmount, cancelReason);
-
-		String idempotencyKey = payment.getBookingId() + "_" + UUID.randomUUID();
 
 		try {
 			restClient.post()
