@@ -19,7 +19,6 @@ import com.taken_seat.payment_service.application.tossclient.dto.TossApiResponse
 import com.taken_seat.payment_service.application.tossclient.dto.TossCancelRequest;
 import com.taken_seat.payment_service.application.tossclient.dto.TossConfirmResponse;
 import com.taken_seat.payment_service.application.tossclient.dto.TossPaymentRequest;
-import com.taken_seat.payment_service.domain.repository.PaymentRepository;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,10 +31,8 @@ public class TossPaymentClientImpl implements TossPaymentClient {
 	private static final String EMPTY_SECRET_KEY_SUFFIX = ":";
 
 	private final RestClient restClient;
-	private final PaymentRepository paymentRepository;
 
-	public TossPaymentClientImpl(@Value("${toss.secret-key}") String secretKey, PaymentRepository paymentRepository) {
-		this.paymentRepository = paymentRepository;
+	public TossPaymentClientImpl(@Value("${toss.secret-key}") String secretKey) {
 		String authHeader = createAuthHeader(secretKey);
 
 		this.restClient = RestClient.builder()
