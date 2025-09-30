@@ -106,15 +106,20 @@ public class Payment extends BaseTimeEntity {
 		this.paymentStatus = PaymentStatus.DELETED;
 	}
 
-	public void refund(PaymentRefundMessage message) {
+	public void verifyRefundable() {
 		if (this.paymentStatus != PaymentStatus.COMPLETED) {
-			throw new PaymentException(ResponseCode.CANNOT_REFUND);
+			throw new PaymentException(ResponseCode.CANNOT_REFUND, "환불이 불가능한 결제 상태입니다.");
 		}
+	}
 
-		this.refundAmount = message.getAmount();
-		this.refundRequestedAt = LocalDateTime.now();
+	/**
+	 * 환불 처리를 완료하고 상태를 변경합니다.
+	 */
+	public void completeRefund(PaymentRefundMessage message) {
 		this.paymentStatus = PaymentStatus.REFUNDED;
-		this.preUpdate(message.getUserId());
+		this.refundAmount = message.getAmount(); // 메시지로부터 환불 금액을 받음
+		this.refundRequestedAt = LocalDateTime.now();
+		this.preUpdate(message.getUserId()); // 변경자 정보 업데이트
 	}
 
 	public void updateSuccessInfo(TossConfirmResponse response) {
