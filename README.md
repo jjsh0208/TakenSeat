@@ -316,8 +316,6 @@ http://localhost:3000   (Grafana) – admin / admin
 ## ⚙️ CI/CD 파이프라인
 
 1. **GitHub Actions** – PR 검증 (Test · Lint · Build) & Docker 이미지 Push
-2. **Argo CD** – EKS 배포 자동 Sync (Helm Chart)
-3. **Slack 알림** – 배포 성공/실패 통지
 
 <br><br>
 
