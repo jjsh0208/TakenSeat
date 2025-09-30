@@ -4,7 +4,7 @@ import com.taken_seat.payment_service.application.tossclient.dto.TossConfirmResp
 import com.taken_seat.payment_service.application.tossclient.dto.TossPaymentRequest;
 
 public interface TossPaymentClient {
-	TossConfirmResponse confirmPayment(TossPaymentRequest request);
+	TossConfirmResponse confirmPayment(TossPaymentRequest request, String idempotencyKey);
 
-	void refund(String paymentKey, Integer cancelAmount, String cancelReason);
+	void cancelPayment(String paymentKey, String cancelReason, int cancelAmount, String idempotencyKey);
 }

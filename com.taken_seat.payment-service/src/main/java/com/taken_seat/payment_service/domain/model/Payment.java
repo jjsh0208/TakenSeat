@@ -9,6 +9,7 @@ import com.taken_seat.common_service.exception.enums.ResponseCode;
 import com.taken_seat.common_service.message.PaymentMessage;
 import com.taken_seat.common_service.message.PaymentRefundMessage;
 import com.taken_seat.payment_service.application.dto.service.PaymentDto;
+import com.taken_seat.payment_service.application.tossclient.dto.TossConfirmResponse;
 import com.taken_seat.payment_service.domain.enums.PaymentStatus;
 
 import jakarta.persistence.Column;
@@ -51,6 +52,9 @@ public class Payment extends BaseTimeEntity {
 
 	@Column(unique = true)
 	private String paymentKey;
+
+	@Column(unique = true)
+	private String idempotencyKey;
 
 	@Column(nullable = false)
 	@Enumerated(EnumType.STRING)
@@ -102,23 +106,29 @@ public class Payment extends BaseTimeEntity {
 		this.paymentStatus = PaymentStatus.DELETED;
 	}
 
-	public void refund(PaymentRefundMessage message) {
+	public void verifyRefundable() {
 		if (this.paymentStatus != PaymentStatus.COMPLETED) {
-			throw new PaymentException(ResponseCode.CANNOT_REFUND);
+			throw new PaymentException(ResponseCode.CANNOT_REFUND, "환불이 불가능한 결제 상태입니다.");
 		}
-
-		this.refundAmount = message.getAmount();
-		this.refundRequestedAt = LocalDateTime.now();
-		this.paymentStatus = PaymentStatus.REFUNDED;
-		this.preUpdate(message.getUserId());
 	}
 
-	public void updateSuccessInfo(String paymentKey, int totalAmount) {
+	/**
+	 * 환불 처리를 완료하고 상태를 변경합니다.
+	 */
+	public void completeRefund(PaymentRefundMessage message) {
+		this.paymentStatus = PaymentStatus.REFUNDED;
+		this.refundAmount = message.getAmount(); // 메시지로부터 환불 금액을 받음
+		this.refundRequestedAt = LocalDateTime.now();
+		this.preUpdate(message.getUserId()); // 변경자 정보 업데이트
+	}
+
+	public void updateSuccessInfo(TossConfirmResponse response) {
 
 		this.paymentStatus = PaymentStatus.COMPLETED;
-		this.paymentKey = paymentKey;
-		this.amount = totalAmount;
+		this.paymentKey = response.paymentKey();
+		this.amount = response.totalAmount();
 		this.approvedAt = LocalDateTime.now();
 		this.updatedAt = LocalDateTime.now();
+		this.idempotencyKey = response.idempotencyKey();
 	}
 }

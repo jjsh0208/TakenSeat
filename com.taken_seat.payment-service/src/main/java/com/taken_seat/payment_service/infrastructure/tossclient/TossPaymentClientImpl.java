@@ -6,6 +6,7 @@ import java.util.Base64;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
@@ -14,9 +15,11 @@ import org.springframework.web.client.RestClientException;
 import com.taken_seat.common_service.exception.customException.PaymentException;
 import com.taken_seat.common_service.exception.enums.ResponseCode;
 import com.taken_seat.payment_service.application.tossclient.TossPaymentClient;
+import com.taken_seat.payment_service.application.tossclient.dto.TossApiResponse;
 import com.taken_seat.payment_service.application.tossclient.dto.TossCancelRequest;
 import com.taken_seat.payment_service.application.tossclient.dto.TossConfirmResponse;
 import com.taken_seat.payment_service.application.tossclient.dto.TossPaymentRequest;
+import com.taken_seat.payment_service.domain.repository.PaymentRepository;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -29,8 +32,10 @@ public class TossPaymentClientImpl implements TossPaymentClient {
 	private static final String EMPTY_SECRET_KEY_SUFFIX = ":";
 
 	private final RestClient restClient;
+	private final PaymentRepository paymentRepository;
 
-	public TossPaymentClientImpl(@Value("${toss.secret-key}") String secretKey) {
+	public TossPaymentClientImpl(@Value("${toss.secret-key}") String secretKey, PaymentRepository paymentRepository) {
+		this.paymentRepository = paymentRepository;
 		String authHeader = createAuthHeader(secretKey);
 
 		this.restClient = RestClient.builder()
@@ -41,13 +46,27 @@ public class TossPaymentClientImpl implements TossPaymentClient {
 	}
 
 	@Override
-	public TossConfirmResponse confirmPayment(TossPaymentRequest request) {
+	public TossConfirmResponse confirmPayment(TossPaymentRequest request, String idempotencyKey) {
 		try {
-			return restClient.post()
+			ResponseEntity<TossApiResponse> responseEntity = restClient.post()
 				.uri("/payments/confirm")
+				.header("Idempotency-Key", idempotencyKey)
 				.body(request)
 				.retrieve()
-				.body(TossConfirmResponse.class); // 응답을 DTO로 매핑}
+				.toEntity(TossApiResponse.class);
+
+			TossApiResponse tossRes = responseEntity.getBody();
+
+			return new TossConfirmResponse(
+				tossRes.orderId(),
+				tossRes.paymentKey(),
+				tossRes.status(),
+				tossRes.approvedAt(),
+				tossRes.method(),
+				tossRes.totalAmount(),
+				tossRes.card(),
+				idempotencyKey
+			);
 		} catch (HttpClientErrorException ex) {
 			log.error("Toss 결제 클라이언트 오류: {}", ex.getResponseBodyAsString(), ex);
 			throw new PaymentException(ResponseCode.ILLEGAL_ARGUMENT, "결제 승인 중 클라이언트 오류가 발생했습니다.");
@@ -58,13 +77,14 @@ public class TossPaymentClientImpl implements TossPaymentClient {
 	}
 
 	@Override
-	public void refund(String paymentKey, Integer cancelAmount, String cancelReason) {
+	public void cancelPayment(String paymentKey, String cancelReason, int cancelAmount, String idempotencyKey) {
 
 		TossCancelRequest request = new TossCancelRequest(cancelAmount, cancelReason);
 
 		try {
 			restClient.post()
 				.uri("/payments/{paymentKey}/cancel", paymentKey)
+				.header("Idempotency-Key", idempotencyKey)
 				.body(request)
 				.retrieve()
 				.toBodilessEntity();
