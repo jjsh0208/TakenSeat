@@ -8,14 +8,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import org.springframework.data.redis.connection.RedisHashCommands;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.stereotype.Repository;
 
-import com.taken_seat.common_service.exception.customException.PaymentException;
+import com.taken_seat.common_service.exception.customException.ReviewException;
 import com.taken_seat.common_service.exception.enums.ResponseCode;
 import com.taken_seat.review_service.application.service.ReviewChangeMaker;
 import com.taken_seat.review_service.domain.repository.RedisRatingRepository;
@@ -90,7 +89,6 @@ public class RedisRatingRepositoryImpl implements RedisRatingRepository {
 			log.info("[Review] Redis Pipeline 처리 시작 (start = {}, end = {})", start, end);
 			redisTemplate.executePipelined((RedisCallback<Object>)connection -> {
 
-				RedisHashCommands hashCommands = connection.hashCommands();
 				for (Map<String, Object> stat : batchList) {
 					UUID performanceId = bytesToUUID(stat.get("performanceId"));
 					double avgRating = bigDecimalToDouble(stat.get(FIELD_AVG_RATING));
@@ -107,12 +105,6 @@ public class RedisRatingRepositoryImpl implements RedisRatingRepository {
 					connection.hMSet(serializer.serialize(avgRatingKey), redisMap);
 					connection.expire(serializer.serialize(avgRatingKey), Duration.ofHours(2).getSeconds());
 
-					hashCommands.hMSet(serializer.serialize(avgRatingKey), redisMap);
-
-					connection.keyCommands().expire(
-						serializer.serialize(avgRatingKey),
-						Duration.ofHours(2).getSeconds()
-					);
 				}
 				return null;
 			});
@@ -164,7 +156,7 @@ public class RedisRatingRepositoryImpl implements RedisRatingRepository {
 	private UUID bytesToUUID(Object value) {
 		byte[] uuidByte = (byte[])value;
 		if (uuidByte == null || uuidByte.length != 16) {
-			throw new PaymentException(ResponseCode.ILLEGAL_ARGUMENT, "잘못된 UUID 입니다.");
+			throw new ReviewException(ResponseCode.ILLEGAL_ARGUMENT, "잘못된 UUID 입니다.");
 		}
 		ByteBuffer bb = ByteBuffer.wrap(uuidByte);
 		return new UUID(bb.getLong(), bb.getLong());
@@ -175,7 +167,7 @@ public class RedisRatingRepositoryImpl implements RedisRatingRepository {
 			return ((BigDecimal)value).doubleValue();
 		}
 		log.error("[Review] 잘못된 값 형식, value={}", value);
-		throw new PaymentException(ResponseCode.ILLEGAL_ARGUMENT);
+		throw new ReviewException(ResponseCode.ILLEGAL_ARGUMENT);
 	}
 
 	private void saveRating(UUID performanceId, Map<String, Object> avgRatingAndCount) {
