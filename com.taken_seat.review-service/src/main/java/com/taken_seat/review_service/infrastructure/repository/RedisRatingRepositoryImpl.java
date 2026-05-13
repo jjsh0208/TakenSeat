@@ -1,7 +1,6 @@
 package com.taken_seat.review_service.infrastructure.repository;
 
 import java.math.BigDecimal;
-import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -103,7 +102,7 @@ public class RedisRatingRepositoryImpl implements RedisRatingRepository {
 					for (ReviewStatProjection stat : batchList) {
 
 						String avgRatingKey = AVG_RATING_KEY + stat.getPerformanceId();
-						
+
 						// String.valueOf()를 통해 String으로 변환하여 저장
 						Map<String, String> redisMap = new HashMap<>();
 						redisMap.put(avgRatingKey, String.valueOf(stat.getAvgRating()));
@@ -143,32 +142,6 @@ public class RedisRatingRepositoryImpl implements RedisRatingRepository {
 			}
 		}
 		return 0L;
-	}
-
-	private long getOrDefaultReviewCountFromStringKey(Map<String, Object> ratingData, String field) {
-		Object reviewCountObj = ratingData.get(field);
-
-		if (reviewCountObj instanceof Long) {
-			return (Long)reviewCountObj;
-		} else if (reviewCountObj instanceof Integer) {
-			return ((Integer)reviewCountObj).longValue();
-		} else if (reviewCountObj instanceof String) {
-			try {
-				return Long.parseLong((String)reviewCountObj);
-			} catch (NumberFormatException e) {
-				log.warn("[Review] 문자열 리뷰 수 파싱 실패: {}", reviewCountObj);
-			}
-		}
-		return 0L;
-	}
-
-	private UUID bytesToUUID(Object value) {
-		byte[] uuidByte = (byte[])value;
-		if (uuidByte == null || uuidByte.length != 16) {
-			throw new ReviewException(ResponseCode.ILLEGAL_ARGUMENT, "잘못된 UUID 입니다.");
-		}
-		ByteBuffer bb = ByteBuffer.wrap(uuidByte);
-		return new UUID(bb.getLong(), bb.getLong());
 	}
 
 	private double bigDecimalToDouble(Object value) {
