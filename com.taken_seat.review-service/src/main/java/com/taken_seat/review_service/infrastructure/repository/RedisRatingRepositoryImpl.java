@@ -1,6 +1,5 @@
 package com.taken_seat.review_service.infrastructure.repository;
 
-import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -16,8 +15,6 @@ import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.stereotype.Repository;
 
-import com.taken_seat.common_service.exception.customException.ReviewException;
-import com.taken_seat.common_service.exception.enums.ResponseCode;
 import com.taken_seat.review_service.application.service.ReviewChangeMaker;
 import com.taken_seat.review_service.domain.repository.RedisRatingRepository;
 import com.taken_seat.review_service.domain.repository.ReviewRepository;
@@ -45,24 +42,31 @@ public class RedisRatingRepositoryImpl implements RedisRatingRepository {
 		log.info("[Review] 평균 평점 조회 시작, performanceId={}", performanceId);
 		String avgRatingKey = AVG_RATING_KEY + performanceId;
 
+		//1 redis에서 가져옴
 		Map<Object, Object> ratingData = redisTemplate.opsForHash().entries(avgRatingKey);
 
-		double avgRating = getOrDefaultRating(ratingData, FIELD_AVG_RATING);
-		long reviewCount = getOrDefaultReviewCountFromObjectKey(ratingData, FIELD_REVIEW_COUNT);
+		// 2. 팩토리 메서드를 통해 안전하게 캐스팅된 객체 획득
+		RedisReviewStat stat = RedisReviewStat.fromRedisMap(ratingData);
 
-		// 리뷰가 50개 미만이면 캐시(Redis)를 믿지 않고 무조건 DB를 다시 조회한다"라는 명확한 비즈니스 정책
-		if (avgRating == 0.0 || reviewCount < 50) {
-			log.info("[Review] 평점이 없거나 리뷰 수가 적음, DB에서 평점 및 리뷰 수 조회 시작, performanceId={}", performanceId);
-			Map<String, Object> avgRatingAndCount = reviewRepository.fetchAvgRatingAndReviewCountByPerformanceId(
-				performanceId);
+		// 3. 비즈니스 정책: 리뷰가 50개 미만이면 무조건 DB 다시 조회
+		if (stat.avgRating() == 0.0 || stat.reviewCount() < 50) {
+			log.info("[Review] 평점이 없거나 리뷰 수가 적음, DB에서 조회 시작, performanceId={}", performanceId);
 
-			saveRating(performanceId, avgRatingAndCount);
+			// Map이 아닌 Projection 객체로 깔끔하게 받아옴!
+			ReviewStatProjection dbStat = reviewRepository.fetchAvgRatingAndReviewCountByPerformanceId(performanceId);
 
-			avgRating = bigDecimalToDouble(avgRatingAndCount.get(FIELD_AVG_RATING));
-			log.info("[Review] DB에서 평균 평점 및 리뷰 수 조회 완료, avgRating={}, reviewCount={}", avgRating, reviewCount);
+			// Projection의 Getter를 이용해 값을 바로 저장
+			saveRatingToRedisWithTTL(performanceId, dbStat.getAvgRating(), dbStat.getReviewCount());
+
+			log.info("[Review] DB에서 평균 평점 및 리뷰 수 조회 완료, avgRating={}, reviewCount={}", dbStat.getAvgRating(),
+				dbStat.getReviewCount());
+
+			// 객체의 Getter를 바로 반환 (bigDecimalToDouble 등 불필요)
+			return dbStat.getAvgRating();
 		}
 
-		return avgRating;
+		// 캐시된 평점 반환
+		return stat.avgRating();
 	}
 
 	@Override
@@ -122,45 +126,6 @@ public class RedisRatingRepositoryImpl implements RedisRatingRepository {
 		log.info("[Review] Redis Pipeline 처리 완료");
 	}
 
-	private double getOrDefaultRating(Map<Object, Object> ratingData, String field) {
-		Object ratingObj = ratingData.get(field);
-		return (ratingObj != null) ? (double)ratingObj : 0.0;
-	}
-
-	private long getOrDefaultReviewCountFromObjectKey(Map<Object, Object> ratingData, String field) {
-		Object reviewCountObj = ratingData.get(field);
-
-		if (reviewCountObj instanceof Long) {
-			return (Long)reviewCountObj;
-		} else if (reviewCountObj instanceof Integer) {
-			return ((Integer)reviewCountObj).longValue();
-		} else if (reviewCountObj instanceof String) {
-			try {
-				return Long.parseLong((String)reviewCountObj);
-			} catch (NumberFormatException e) {
-				log.warn("[Review] 문자열 리뷰 수 파싱 실패: {}", reviewCountObj);
-			}
-		}
-		return 0L;
-	}
-
-	private double bigDecimalToDouble(Object value) {
-		if (value instanceof BigDecimal) {
-			return ((BigDecimal)value).doubleValue();
-		}
-		log.error("[Review] 잘못된 값 형식, value={}", value);
-		throw new ReviewException(ResponseCode.ILLEGAL_ARGUMENT);
-	}
-
-	private void saveRating(UUID performanceId, Map<String, Object> avgRatingAndCount) {
-		double avgRating = bigDecimalToDouble(avgRatingAndCount.get(FIELD_AVG_RATING));
-		long reviewCount = (long)avgRatingAndCount.get(FIELD_REVIEW_COUNT);
-
-		saveRatingToRedisWithTTL(performanceId, avgRating, reviewCount);
-		log.info("[Review] Redis에 평점 및 리뷰 수 저장, performanceId={}, avgRating={}, reviewCount={}", performanceId,
-			avgRating, reviewCount);
-	}
-
 	private void saveRatingToRedisWithTTL(UUID performanceId, double avgRating, long reviewCount) {
 		String avgRatingKey = AVG_RATING_KEY + performanceId;
 
@@ -175,5 +140,26 @@ public class RedisRatingRepositoryImpl implements RedisRatingRepository {
 		redisTemplate.expire(avgRatingKey, Duration.ofHours(2));
 		log.info("[Review] 평점 및 리뷰 수 Redis에 저장 완료, performanceId={}, avgRating={}, reviewCount={}", performanceId,
 			avgRating, reviewCount);
+	}
+
+	public record RedisReviewStat(double avgRating, long reviewCount) {
+		public static RedisReviewStat fromRedisMap(Map<Object, Object> map) {
+			if (map == null || map.isEmpty()) {
+				return new RedisReviewStat(0.0, 0L);
+			}
+
+			double rating = parseDouble(map.get("avgRating"));
+			long count = parseLong(map.get("reviewCount"));
+
+			return new RedisReviewStat(rating, count);
+		}
+
+		private static double parseDouble(Object obj) {
+			return obj != null ? Double.parseDouble(String.valueOf(obj)) : 0.0;
+		}
+
+		private static long parseLong(Object obj) {
+			return obj != null ? Long.parseLong(String.valueOf(obj)) : 0L;
+		}
 	}
 }
