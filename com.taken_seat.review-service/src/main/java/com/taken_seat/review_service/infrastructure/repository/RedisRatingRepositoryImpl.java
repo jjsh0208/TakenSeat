@@ -11,8 +11,6 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SessionCallback;
-import org.springframework.data.redis.serializer.RedisSerializer;
-import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.stereotype.Repository;
 
 import com.taken_seat.review_service.application.service.ReviewChangeMaker;
@@ -31,7 +29,6 @@ public class RedisRatingRepositoryImpl implements RedisRatingRepository {
 	private final ReviewRepository reviewRepository;
 	private final ReviewChangeMaker reviewChangeMaker;
 	private final RedisTemplate<String, Object> redisTemplate;
-	private final RedisSerializer<String> serializer = new StringRedisSerializer();
 
 	private final String AVG_RATING_KEY = "avgRating:";
 	private static final String FIELD_AVG_RATING = "avgRating";
