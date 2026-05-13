@@ -52,7 +52,7 @@ public class RedisRatingRepositoryImpl implements RedisRatingRepository {
 		if (stat.avgRating() == 0.0 || stat.reviewCount() < 50) {
 			log.info("[Review] 평점이 없거나 리뷰 수가 적음, DB에서 조회 시작, performanceId={}", performanceId);
 
-			// Map이 아닌 Projection 객체로 깔끔하게 받아옴!
+			// Map이 아닌 Projection 객체로 깔끔하게 받아옴
 			ReviewStatProjection dbStat = reviewRepository.fetchAvgRatingAndReviewCountByPerformanceId(performanceId);
 
 			// Projection의 Getter를 이용해 값을 바로 저장
@@ -61,7 +61,7 @@ public class RedisRatingRepositoryImpl implements RedisRatingRepository {
 			log.info("[Review] DB에서 평균 평점 및 리뷰 수 조회 완료, avgRating={}, reviewCount={}", dbStat.getAvgRating(),
 				dbStat.getReviewCount());
 
-			// 객체의 Getter를 바로 반환 (bigDecimalToDouble 등 불필요)
+			// 객체의 Getter를 바로 반환
 			return dbStat.getAvgRating();
 		}
 
