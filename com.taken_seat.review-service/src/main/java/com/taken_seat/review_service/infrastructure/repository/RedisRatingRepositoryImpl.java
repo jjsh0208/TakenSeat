@@ -109,9 +109,9 @@ public class RedisRatingRepositoryImpl implements RedisRatingRepository {
 				return null;
 			});
 
-			reviewChangeMaker.clearChangedPerformanceIds();
-			log.info("[Review] Redis Pipeline 처리 완료");
 		}
+		reviewChangeMaker.clearChangedPerformanceIds();
+		log.info("[Review] Redis Pipeline 처리 완료");
 	}
 
 	private double getOrDefaultRating(Map<Object, Object> ratingData, String field) {
