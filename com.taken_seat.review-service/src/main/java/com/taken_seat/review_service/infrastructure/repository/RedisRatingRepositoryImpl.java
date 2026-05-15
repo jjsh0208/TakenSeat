@@ -102,12 +102,12 @@ public class RedisRatingRepositoryImpl implements RedisRatingRepository {
 
 					for (ReviewStatProjection stat : batchList) {
 
-						String avgRatingKey = AVG_RATING_KEY + stat.getPerformanceId();
+						String avgRatingKey = AVG_RATING_KEY + stat.getPerformanceId().toString();
 
 						// String.valueOf()를 통해 String으로 변환하여 저장
 						Map<String, String> redisMap = new HashMap<>();
-						redisMap.put(avgRatingKey, String.valueOf(stat.getAvgRating()));
-						redisMap.put(avgRatingKey, String.valueOf(stat.getReviewCount()));
+						redisMap.put(FIELD_AVG_RATING, String.valueOf(stat.getAvgRating()));
+						redisMap.put(FIELD_REVIEW_COUNT, String.valueOf(stat.getReviewCount()));
 
 						// 명령어를 큐에 쌓음
 						stringOps.opsForHash().putAll(avgRatingKey, redisMap);
@@ -127,12 +127,11 @@ public class RedisRatingRepositoryImpl implements RedisRatingRepository {
 		String avgRatingKey = AVG_RATING_KEY + performanceId;
 
 		Map<String, Object> ratingInfo = new HashMap<>();
-		ratingInfo.put(FIELD_AVG_RATING, avgRating);
-		ratingInfo.put(FIELD_REVIEW_COUNT, reviewCount);
+		ratingInfo.put(FIELD_AVG_RATING, String.valueOf(avgRating));
+		ratingInfo.put(FIELD_REVIEW_COUNT, String.valueOf(reviewCount));
 
 		// 해시로 저장
 		redisTemplate.opsForHash().putAll(avgRatingKey, ratingInfo);
-
 		// TTL 설정: 1시간 30분
 		redisTemplate.expire(avgRatingKey, Duration.ofHours(2));
 		log.info("[Review] 평점 및 리뷰 수 Redis에 저장 완료, performanceId={}, avgRating={}, reviewCount={}", performanceId,
