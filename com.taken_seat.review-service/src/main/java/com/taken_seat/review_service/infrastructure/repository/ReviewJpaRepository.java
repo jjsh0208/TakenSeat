@@ -21,7 +21,7 @@ public interface ReviewJpaRepository extends JpaRepository<Review, UUID> {
 
 	@Query(value = """
 		SELECT 
-			r.performance_id AS performanceId,
+			BIN_TO_UUID(r.performance_id) AS performanceId,
 			ROUND(AVG(r.rating), 2) AS avgRating,
 			COUNT(r.id) AS reviewCount
 		FROM p_review r 
@@ -32,8 +32,8 @@ public interface ReviewJpaRepository extends JpaRepository<Review, UUID> {
 
 	@Query(value = """
 		    SELECT
-		       r.performance_id AS performanceId,
-		        ROUND(AVG(r.rating), 2) AS avgRating,
+		    	BIN_TO_UUID(r.performance_id) AS performanceId,
+		    	ROUND(AVG(r.rating), 2) AS avgRating,
 		        COUNT(*) AS reviewCount
 		    FROM p_review r
 		    WHERE r.performance_id IN :performanceIds AND r.deleted_at IS NULL 
