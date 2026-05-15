@@ -1,7 +1,7 @@
 # Dockerfile
 
 # JDK 17 기반의 경량화된 이미지 사용
-FROM openjdk:17-jdk-slim
+FROM eclipse-temurin:17-jdk-alpine
 
 # 작업 디렉터리 설정
 WORKDIR /app
