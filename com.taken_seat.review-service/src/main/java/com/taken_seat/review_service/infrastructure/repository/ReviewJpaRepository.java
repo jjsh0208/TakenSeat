@@ -36,7 +36,7 @@ public interface ReviewJpaRepository extends JpaRepository<Review, UUID> {
 		        ROUND(AVG(r.rating), 2) AS avgRating,
 		        COUNT(*) AS reviewCount
 		    FROM p_review r
-		    WHERE r.performance_id IN :performanceIds AND r.delete_at IS NULL 
+		    WHERE r.performance_id IN :performanceIds AND r.deleted_at IS NULL 
 		    GROUP BY r.performance_id
 		""", nativeQuery = true)
 	List<ReviewStatProjection> fetchAvgRatingAndReviewCountByPerformanceIds(
