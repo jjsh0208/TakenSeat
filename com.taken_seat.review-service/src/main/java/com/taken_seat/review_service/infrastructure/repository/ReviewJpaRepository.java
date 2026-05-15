@@ -1,7 +1,6 @@
 package com.taken_seat.review_service.infrastructure.repository;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -10,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.taken_seat.review_service.domain.model.Review;
+import com.taken_seat.review_service.domain.repository.projection.ReviewStatProjection;
 
 public interface ReviewJpaRepository extends JpaRepository<Review, UUID> {
 
@@ -19,22 +19,27 @@ public interface ReviewJpaRepository extends JpaRepository<Review, UUID> {
 
 	<S extends Review> List<S> saveAllAndFlush(Iterable<S> entities);
 
-	@Query(value =
-		"SELECT r.performance_id AS performanceId,ROUND(AVG(r.rating), 2) AS avgRating, COUNT(r.id) AS reviewCount "
-			+ "FROM p_review r "
-			+ "WHERE r.performance_id = :performanceId AND r.deleted_at IS NULL", nativeQuery = true)
-	Map<String, Object> fetchAvgRatingAndReviewCountByPerformanceId(UUID performanceId);
+	@Query(value = """
+		SELECT 
+			BIN_TO_UUID(r.performance_id) AS performanceId,
+			ROUND(AVG(r.rating), 2) AS avgRating,
+			COUNT(r.id) AS reviewCount
+		FROM p_review r 
+		WHERE r.performance_id = :performanceId AND r.deleted_at IS NULL
+		GROUP BY r.performance_id
+		""", nativeQuery = true)
+	ReviewStatProjection fetchAvgRatingAndReviewCountByPerformanceId(UUID performanceId);
 
 	@Query(value = """
 		    SELECT
-		        r.performance_id,
-		        ROUND(AVG(r.rating), 2) AS avgRating,
+		    	BIN_TO_UUID(r.performance_id) AS performanceId,
+		    	ROUND(AVG(r.rating), 2) AS avgRating,
 		        COUNT(*) AS reviewCount
 		    FROM p_review r
-		    WHERE r.performance_id IN :performanceIds
+		    WHERE r.performance_id IN :performanceIds AND r.deleted_at IS NULL 
 		    GROUP BY r.performance_id
 		""", nativeQuery = true)
-	List<Map<String, Object>> fetchAvgRatingAndReviewCountByPerformanceIds(
+	List<ReviewStatProjection> fetchAvgRatingAndReviewCountByPerformanceIds(
 		@Param("performanceIds") List<UUID> performanceIds);
 
 }

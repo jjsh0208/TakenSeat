@@ -1,7 +1,6 @@
 package com.taken_seat.review_service.infrastructure.repository;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -9,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import com.taken_seat.review_service.domain.model.Review;
 import com.taken_seat.review_service.domain.repository.ReviewRepository;
+import com.taken_seat.review_service.domain.repository.projection.ReviewStatProjection;
 
 import lombok.RequiredArgsConstructor;
 
@@ -39,12 +39,12 @@ public class ReviewRepositoryImpl implements ReviewRepository {
 	}
 
 	@Override
-	public Map<String, Object> fetchAvgRatingAndReviewCountByPerformanceId(UUID performanceId) {
+	public ReviewStatProjection fetchAvgRatingAndReviewCountByPerformanceId(UUID performanceId) {
 		return reviewJpaRepository.fetchAvgRatingAndReviewCountByPerformanceId(performanceId);
 	}
 
 	@Override
-	public List<Map<String, Object>> fetchAvgRatingAndReviewCountByPerformanceIds(List<UUID> performanceIds) {
+	public List<ReviewStatProjection> fetchAvgRatingAndReviewCountByPerformanceIds(List<UUID> performanceIds) {
 		return reviewJpaRepository.fetchAvgRatingAndReviewCountByPerformanceIds(performanceIds);
 	}
 }
